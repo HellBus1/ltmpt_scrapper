@@ -17,7 +17,9 @@ fun main() {
 //    generateUniversityUrlList()
 //    generatePoliteknikUrlList()
 //    generateDetailUniverstyUrlList()
-    generateUniversityListDocument()
+//    generateDetailPoliteknikUrlList()
+//    generateUniversityListDocument()
+    generatePoliteknikListDocument()
 }
 
 fun splitQuery(url: URL): Map<String, String> {
@@ -32,6 +34,10 @@ fun splitQuery(url: URL): Map<String, String> {
     return query_pairs
 }
 
+fun emptyOrMinusConditionCheck(element: String): Boolean {
+    return (element.trim() != "" && element.trim() != "-")
+}
+
 fun generateUniversityListDocument() {
     val driver: WebDriver = SafariDriver()
 
@@ -39,13 +45,16 @@ fun generateUniversityListDocument() {
     var currentPtn = ""
     val dataAggregate = mutableMapOf<String, Any?>()
 
+    val urlPathName = "src/resources/university_url_list_soshum.txt"
+//    val urlPathName = "src/resources/university_url_list_saintek.txt"
+
     var tesCounter = 1
     val gson = Gson()
 
-//    run lit@ {
+    run lit@ {
 
-        File("src/resources/university_url_list_saintek.txt").useLines { lines -> lines.forEach {
-//            if (tesCounter == 4) {
+        File(urlPathName).useLines { lines -> lines.forEach {
+//            if (tesCounter == 2) {
 //                return@lit
 //            }
 
@@ -57,7 +66,6 @@ fun generateUniversityListDocument() {
                 val sebaranPeminat: List<WebElement> = driver.findElements(By.cssSelector(".table-condensed tr"))
                 val informasiUmum: List<WebElement> = driver.findElements(By.cssSelector("td[valign=\"top\"] .panel-body .table tbody tr"))
                 val university: WebElement = driver.findElement(By.cssSelector(".well .panel-title"))
-                val prodi: WebElement = driver.findElement(By.cssSelector("td[valign=\"top\"] .panel-title"))
 
                 var counter = 1
                 var informasiCounter = 0
@@ -70,8 +78,7 @@ fun generateUniversityListDocument() {
                 val yearMap = mutableMapOf<String, String>()
                 val demandMap = mutableMapOf<String, String>()
                 val admittedMap = mutableMapOf<String, String>()
-//                val registrantMap = mutableMapOf<String, Map<String, String>>()
-                val provinceMap = mutableMapOf<String, ArrayList<Map<String, Int>>>()
+                val provinceMap = mutableMapOf<String, Map<String, Int>>()
 
                 val registrantDemandMap = mutableMapOf<String, Any?>()
 
@@ -83,9 +90,10 @@ fun generateUniversityListDocument() {
                     dataAggregate.put("name", university.text)
 
 //                    println("Data Aggregate : $dataAggregate")
-                    dataMap[currentPtn] = dataAggregate
+                    dataMap[currentPtn.trim()] = dataAggregate
 
-                    val fileName = "src/resources/saintek/${currentPtn}_saintek.json"
+//                    val fileName = "src/resources/saintek/${currentPtn}_saintek.json"
+                    val fileName = "src/resources/soshum/${currentPtn}_soshum.json"
                     currentPtn = queryStringsMap["ptn"]!!
 
 //                    println("Data Map : $dataMap")
@@ -109,20 +117,19 @@ fun generateUniversityListDocument() {
                         break
                     }
                     val tdList: List<WebElement> = tr.findElements(By.cssSelector("td")).map { it }
-//                println(tdList[0].text.lowercase() + " " + tdList[1].text.lowercase())
 
                     when(tdList[0].text.lowercase()) {
                         "kode" -> {
-                            majorCode = tdList[1].text
+                            majorCode = tdList[1].text.trim()
                         }
                         "nama" -> {
-                            majorName = tdList[1].text
+                            majorName = tdList[1].text.trim()
                         }
                         "jenjang" -> {
-                            majorLevel = tdList[1].text
+                            majorLevel = tdList[1].text.trim()
                         }
                         "jenis" -> {
-                            majorType = tdList[1].text
+                            majorType = tdList[1].text.trim()
                         }
                         "daya tampung" -> {
                             for (tr in sebaranPeminat) {
@@ -155,19 +162,17 @@ fun generateUniversityListDocument() {
                                         if (index == 0) {
                                             provinceCode = provinceCodeMap[webElement.text].toString()
                                         } else {
-                                            val temporaryProvinceDemand: ArrayList<Map<String, Int>> = arrayListOf()
+                                            val temporaryProvinceDemand: MutableMap<String, Int> = mutableMapOf()
 
                                             provinceMap[index.toString()].let { it ->
                                                 if(!it.isNullOrEmpty()) {
-                                                    temporaryProvinceDemand.addAll(provinceMap[index.toString()]!!)
-//                                                    println("temporary : $temporaryProvinceDemand")
+                                                    temporaryProvinceDemand.putAll(provinceMap[index.toString()]!!)
                                                 }
                                             }
 
-                                            temporaryProvinceDemand.add(mutableMapOf(provinceCode to if (webElement.text != "" && webElement.text != "-") webElement.text.toInt() else 0))
+                                            temporaryProvinceDemand[provinceCode] = (if (emptyOrMinusConditionCheck(webElement.text)) webElement.text.toInt() else 0)
 
                                             provinceMap[index.toString()] = temporaryProvinceDemand
-//                                            println("first : $provinceMap")
                                         }
                                     }
                                 }
@@ -176,21 +181,23 @@ fun generateUniversityListDocument() {
                             }
 
                             for ((key, value) in yearMap) {
+                                val formattedAdmitted = if (emptyOrMinusConditionCheck(admittedMap[key]!!)) arrayOf("") else admittedMap[key]?.split("(")?.toTypedArray()
+
                                 registrantDemandMap.put(
                                     value, mutableMapOf(
-                                        "total" to demandMap[key],
-                                        "admitted" to admittedMap[key],
+                                        "total" to if (emptyOrMinusConditionCheck(demandMap[key]!!)) demandMap[key]?.toInt() else 0,
+                                        "admitted" to if (emptyOrMinusConditionCheck(formattedAdmitted?.get(0)!!)) formattedAdmitted[0].toInt() else 0,
                                         "provinces" to provinceMap[key]
                                     )
                                 )
                             }
 
-                            dataAggregate.put(majorCode, mutableMapOf(
-                                "mjid" to majorCode,
-                                "name" to majorName,
-                                "level" to majorLevel,
-                                "type" to majorType,
-                                "quota" to tdList[1].text,
+                            dataAggregate.put(majorCode.trim(), mutableMapOf(
+                                "mjid" to majorCode.trim(),
+                                "name" to majorName.trim(),
+                                "level" to majorLevel.trim(),
+                                "type" to majorType.trim(),
+                                "quota" to tdList[1].text.toInt(),
                                 "registrant" to registrantDemandMap
                             ))
 
@@ -204,7 +211,184 @@ fun generateUniversityListDocument() {
                 print("errror $e")
             }
         }}
-//    }
+    }
+    driver.close()
+}
+
+fun generatePoliteknikListDocument() {
+    val driver: WebDriver = SafariDriver()
+
+    var dataMap = mutableMapOf<String, Any?>()
+    var currentPtn = ""
+    val dataAggregate = mutableMapOf<String, Any?>()
+
+//    val urlPathName = "src/resources/politeknik_url_list_soshum.txt"
+    val urlPathName = "src/resources/politeknik_url_list_saintek.txt"
+
+    var tesCounter = 1
+    val gson = Gson()
+
+    run lit@ {
+
+        File(urlPathName).useLines { lines -> lines.forEach {
+//            if (tesCounter == 2) {
+//                return@lit
+//            }
+
+            try {
+//                driver.manage().timeouts().implicitlyWait(4, TimeUnit.SECONDS)
+                driver.get(it)
+                val queryStringsMap = splitQuery(URL(it))
+
+                val sebaranPeminat: List<WebElement> = driver.findElements(By.cssSelector(".table-condensed tr"))
+                val informasiUmum: List<WebElement> = driver.findElements(By.cssSelector("td[valign=\"top\"] .panel-body .table tbody tr"))
+                val university: WebElement = driver.findElement(By.cssSelector(".well .panel-title"))
+
+                var counter = 1
+                var informasiCounter = 0
+
+                var majorCode = ""
+                var majorName = ""
+                var majorLevel = ""
+                var majorType = ""
+
+                val yearMap = mutableMapOf<String, String>()
+                val demandMap = mutableMapOf<String, String>()
+                val admittedMap = mutableMapOf<String, String>()
+                val provinceMap = mutableMapOf<String, Map<String, Int>>()
+
+                val registrantDemandMap = mutableMapOf<String, Any?>()
+
+                if (currentPtn == "") {
+                    currentPtn = queryStringsMap["ptn"]!!
+                }else if (currentPtn != queryStringsMap["ptn"]) {
+//                    println("Ptn second $currentPtn")
+                    dataAggregate.put("ucid", currentPtn)
+                    dataAggregate.put("name", university.text)
+
+//                    println("Data Aggregate : $dataAggregate")
+                    dataMap[currentPtn.trim()] = dataAggregate
+
+//                    val fileName = "src/resources/saintek/${currentPtn}_saintek.json"
+                    val fileName = "src/resources/soshum/${currentPtn}_soshum.json"
+                    currentPtn = queryStringsMap["ptn"]!!
+
+//                    println("Data Map : $dataMap")
+
+//                    println(gson.toJson(dataMap).toString())
+//                    println("Ptn third $currentPtn")
+
+                    val file = File(fileName)
+                    file.printWriter().use { out ->
+                        out.println(gson.toJson(dataMap).toString())
+                    }
+
+                    dataAggregate.clear()
+                    dataMap.clear()
+
+                    tesCounter += 1
+                }
+
+                for (tr in informasiUmum) {
+                    if (informasiCounter == 6) {
+                        break
+                    }
+                    val tdList: List<WebElement> = tr.findElements(By.cssSelector("td")).map { it }
+
+                    when(tdList[0].text.lowercase()) {
+                        "kode" -> {
+                            majorCode = tdList[1].text.trim()
+                        }
+                        "nama" -> {
+                            majorName = tdList[1].text.trim()
+                        }
+                        "jenjang" -> {
+                            majorLevel = tdList[1].text.trim()
+                        }
+                        "jenis" -> {
+                            majorType = tdList[1].text.trim()
+                        }
+                        "daya tampung" -> {
+                            for (tr in sebaranPeminat) {
+                                val tdList: List<WebElement> = tr.findElements(By.cssSelector("td")).map { it }
+
+                                if (counter == 1) {
+                                    val thList: List<WebElement> = tr.findElements(By.cssSelector("th")).map { it }
+                                    thList.forEachIndexed { index, webElement ->
+                                        if (index != 0 ){
+                                            yearMap[index.toString()] = webElement.text
+                                        }
+                                    }
+                                } else if (counter == 2) {
+                                    tdList.forEachIndexed { index, webElement ->
+                                        if (index != 0) {
+                                            demandMap[index.toString()] = webElement.text
+                                        }
+                                    }
+                                } else if (counter == 3) {
+                                    tdList.forEachIndexed { index, webElement ->
+                                        if (index != 0) {
+                                            admittedMap[index.toString()] = webElement.text
+                                        }
+                                    }
+                                } else if (counter > 4) {
+                                    // Get demand in every province
+                                    var provinceCode = ""
+
+                                    tdList.forEachIndexed { index, webElement ->
+                                        if (index == 0) {
+                                            provinceCode = provinceCodeMap[webElement.text].toString()
+                                        } else {
+                                            val temporaryProvinceDemand: MutableMap<String, Int> = mutableMapOf()
+
+                                            provinceMap[index.toString()].let { it ->
+                                                if(!it.isNullOrEmpty()) {
+                                                    temporaryProvinceDemand.putAll(provinceMap[index.toString()]!!)
+                                                }
+                                            }
+
+                                            temporaryProvinceDemand[provinceCode] = (if (emptyOrMinusConditionCheck(webElement.text)) webElement.text.toInt() else 0)
+
+                                            provinceMap[index.toString()] = temporaryProvinceDemand
+                                        }
+                                    }
+                                }
+
+                                counter += 1
+                            }
+
+                            for ((key, value) in yearMap) {
+                                val formattedAdmitted = if (emptyOrMinusConditionCheck(admittedMap[key]!!)) arrayOf("") else admittedMap[key]?.split("(")?.toTypedArray()
+
+                                registrantDemandMap.put(
+                                    value, mutableMapOf(
+                                        "total" to if (emptyOrMinusConditionCheck(demandMap[key]!!)) demandMap[key]?.toInt() else 0,
+                                        "admitted" to if (emptyOrMinusConditionCheck(formattedAdmitted?.get(0)!!)) formattedAdmitted[0].toInt() else 0,
+                                        "provinces" to provinceMap[key]
+                                    )
+                                )
+                            }
+
+                            dataAggregate.put(majorCode.trim(), mutableMapOf(
+                                "mjid" to majorCode.trim(),
+                                "name" to majorName.trim(),
+                                "level" to majorLevel.trim(),
+                                "type" to majorType.trim(),
+                                "quota" to tdList[1].text.toInt(),
+                                "registrant" to registrantDemandMap
+                            ))
+
+                        }
+                    }
+
+                    informasiCounter += 1
+                }
+
+            } catch(e: Exception) {
+                print("errror $e")
+            }
+        }}
+    }
     driver.close()
 }
 
@@ -223,7 +407,35 @@ fun generateDetailUniverstyUrlList() {
             val tableContents: List<WebElement> = driver.findElements(By.cssSelector("#jenis2 tbody tr"))
             for (tr in tableContents) {
                 val tdList: List<WebElement> = tr.findElements(By.cssSelector("td")).map { it }
-//                println(tdList[2].text)
+                urlList.add(tdList[2].findElement(By.cssSelector("a")).getAttribute("href").toString())
+            }
+            file.printWriter().use { out ->
+                urlList.forEach { value -> out.println(value) }
+            }
+        } catch(e: Exception) {
+            print("errror $e")
+        }
+    }}
+    driver.close()
+}
+
+fun generateDetailPoliteknikUrlList() {
+    val driver: WebDriver = SafariDriver()
+//    val fileName = "src/resources/politeknik_url_list_saintek.txt"
+    val fileName = "src/resources/politeknik_url_list_soshum.txt"
+    val file = File(fileName)
+    val urlList = ArrayList<String>()
+
+    File("src/resources/politeknik_url_list.txt").useLines { lines -> lines.forEach {
+        try {
+//            driver.manage().timeouts().implicitlyWait(4, TimeUnit.SECONDS)
+            driver.get(it)
+
+//            val jenis = "#jenis1"
+            val jenis = "#jenis2"
+            val tableContents: List<WebElement> = driver.findElements(By.cssSelector("$jenis tbody tr"))
+            for (tr in tableContents) {
+                val tdList: List<WebElement> = tr.findElements(By.cssSelector("td")).map { it }
                 urlList.add(tdList[2].findElement(By.cssSelector("a")).getAttribute("href").toString())
             }
             file.printWriter().use { out ->

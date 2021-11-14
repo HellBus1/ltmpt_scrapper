@@ -70,4 +70,3 @@ outTmp/
 /kotlin-native/dist
 kotlin-ide/
 *.json
-*.txt
