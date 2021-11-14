@@ -1793,3 +1793,4 @@ https://sidata-ptn.ltmpt.ac.id/ptn_sb.php?ptn=921&prodi=9211305&jenis=0
 https://sidata-ptn.ltmpt.ac.id/ptn_sb.php?ptn=921&prodi=9211313&jenis=0
 https://sidata-ptn.ltmpt.ac.id/ptn_sb.php?ptn=921&prodi=9211344&jenis=0
 https://sidata-ptn.ltmpt.ac.id/ptn_sb.php?ptn=921&prodi=9211352&jenis=0
+https://sidata-ptn.ltmpt.ac.id/ptn_sb.php?ptn=1000000&prodi=9211352&jenis=0
