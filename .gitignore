@@ -69,5 +69,5 @@ outTmp/
 /test.output
 /kotlin-native/dist
 kotlin-ide/
-.json
-.txt
+*.json
+*.txt
